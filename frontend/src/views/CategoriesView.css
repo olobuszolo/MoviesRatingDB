@@ -1,0 +1,21 @@
+.categories-layout {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.category-form {
+  display: grid;
+  gap: 14px;
+}
+
+.categories-panel {
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .categories-layout {
+    grid-template-columns: 1fr;
+  }
+}
