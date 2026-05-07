@@ -8,15 +8,19 @@ from neo4j import Session
 from app.config import settings
 from app.database import db, get_session
 from app.repositories import (
+    create_actor,
     create_category,
     create_constraints,
     create_movie,
     create_user,
+    create_director,
+    list_actors,
     list_categories,
     list_movies,
-    list_users
+    list_users,
+    list_directors
 )
-from app.schemas import Category, CategoryCreate, Movie, MovieCreate, User, UserCreate
+from app.schemas import Category, CategoryCreate, Movie, MovieCreate, User, UserCreate, Director, DirectorCreate, Actor, ActorCreate
 
 
 @asynccontextmanager
@@ -73,3 +77,19 @@ def add_category(payload: CategoryCreate, session: DbSession) -> dict:
 @app.get("/categories", response_model=list[Category])
 def get_categories(session: DbSession) -> list[dict]:
     return list_categories(session)
+
+@app.post("/directors", response_model=Director, status_code=status.HTTP_201_CREATED)
+def add_director(payload: DirectorCreate, session: DbSession) -> dict:
+    return create_director(session, payload)
+
+@app.get("/directors", response_model=list[Director])
+def get_directors(session: DbSession) -> list[dict]:
+    return list_directors(session)
+
+@app.post("/actors", response_model=Actor, status_code=status.HTTP_201_CREATED)
+def add_actor(payload: ActorCreate, session: DbSession) -> dict:
+    return create_actor(session, payload)
+
+@app.get("/actors", response_model=list[Actor])
+def get_actors(session: DbSession) -> list[dict]:
+    return list_actors(session)

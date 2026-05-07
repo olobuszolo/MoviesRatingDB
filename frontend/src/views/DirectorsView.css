@@ -1,0 +1,21 @@
+.directors-layout {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.director-form {
+  display: grid;
+  gap: 14px;
+}
+
+.directors-panel {
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .directors-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,21 @@
+.actors-layout {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.actor-form {
+  display: grid;
+  gap: 14px;
+}
+
+.actors-panel {
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .actors-layout {
+    grid-template-columns: 1fr;
+  }
+}

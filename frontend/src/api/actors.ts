@@ -1,0 +1,29 @@
+import type { Actor, ActorCreatePayload } from '../types/actor'
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
+
+export async function fetchActors(): Promise<Actor[]> {
+  const response = await fetch(`${API_URL}/actors`)
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie pobrac aktorow.')
+  }
+
+  return (await response.json()) as Actor[]
+}
+
+export async function createActor(payload: ActorCreatePayload): Promise<Actor> {
+  const response = await fetch(`${API_URL}/actors`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie dodac aktora.')
+  }
+
+  return (await response.json()) as Actor
+}

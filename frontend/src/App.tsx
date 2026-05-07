@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import './App.css'
+import ActorsView from './views/ActorsView'
 import CategoriesView from './views/CategoriesView'
+import DirectorsView from './views/DirectorsView'
 import EmptyView from './views/EmptyView'
 import UsersView from './views/UsersView'
 
@@ -46,9 +48,9 @@ function App() {
       <section className="content">
         {activeTab === 'users' ? <UsersView /> : null}
         {activeTab === 'categories' ? <CategoriesView /> : null}
-        {activeTab !== 'users' && activeTab !== 'categories' ? (
-          <EmptyView label={activeTabLabel} />
-        ) : null}
+        {activeTab === 'actors' ? <ActorsView /> : null}
+        {activeTab === 'directors' ? <DirectorsView /> : null}
+        {activeTab === 'movies' ? <EmptyView label={activeTabLabel} /> : null}
       </section>
     </main>
   )

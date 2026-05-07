@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from neo4j import Session
 
-from app.schemas import CategoryCreate, MovieCreate, UserCreate
+from app.schemas import CategoryCreate, MovieCreate, UserCreate, DirectorCreate, ActorCreate
 
 
 def create_constraints(session: Session) -> None:
@@ -11,6 +11,10 @@ def create_constraints(session: Session) -> None:
     session.run("CREATE CONSTRAINT username_unique IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")
     session.run("CREATE CONSTRAINT category_id_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.id IS UNIQUE")
     session.run("CREATE CONSTRAINT category_name_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS UNIQUE")
+    session.run("CREATE CONSTRAINT director_id_unique IF NOT EXISTS FOR (d:Director) REQUIRE d.id IS UNIQUE")
+    session.run("CREATE CONSTRAINT director_name_unique IF NOT EXISTS FOR (d:Director) REQUIRE d.name IS UNIQUE")
+    session.run("CREATE CONSTRAINT actor_id_unique IF NOT EXISTS FOR (a:Actor) REQUIRE a.id IS UNIQUE")
+    session.run("CREATE CONSTRAINT actor_name_unique IF NOT EXISTS FOR (a:Actor) REQUIRE a.name IS UNIQUE")
 
 
 def create_movie(session: Session, payload: MovieCreate) -> dict:
@@ -96,6 +100,62 @@ def list_categories(session: Session) -> list[dict]:
         """
     )
     return [dict(record["c"]) for record in result]
+
+def create_director(session: Session, payload: DirectorCreate) -> dict:
+    director_id = str(uuid4())
+    result = session.run(
+        """
+        CREATE (d:Director {
+            id: $id,
+            name: $name,
+            country: $country
+        })
+        RETURN d
+        """,
+        id=director_id,
+        name=payload.name,
+        country=payload.country,
+    )
+    return dict(result.single()["d"])
+
+def list_directors(session: Session) -> list[dict]:
+    result = session.run(
+        """
+        MATCH (d:Director)
+        RETURN d
+        ORDER BY d.name
+        """
+    )
+    return [dict(record["d"]) for record in result]
+
+def create_actor(session: Session, payload: ActorCreate) -> dict:
+    actor_id = str(uuid4())
+    result = session.run(
+        """
+        CREATE (a:Actor {
+            id: $id,
+            name: $name,
+            age: $age,
+            country: $country
+        })
+        RETURN a
+        """,
+        id=actor_id,
+        name=payload.name,
+        age=payload.age,
+        country=payload.country,
+    )
+    return dict(result.single()["a"])
+
+def list_actors(session: Session) -> list[dict]:
+    result = session.run(
+        """
+        MATCH (a:Actor)
+        RETURN a
+        ORDER BY a.name
+        """
+    )
+    return [dict(record["a"]) for record in result]
 
 
 # def create_rating(session: Session, payload: RatingCreate) -> dict | None:
