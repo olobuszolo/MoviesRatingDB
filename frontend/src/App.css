@@ -144,7 +144,8 @@ label {
   gap: 6px;
 }
 
-input {
+input,
+select {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -154,7 +155,8 @@ input {
   padding: 10px 11px;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: #2563eb;
   outline: 3px solid rgba(37, 99, 235, 0.16);
 }
@@ -241,6 +243,10 @@ td {
 .error-message {
   color: #b91c1c;
   margin-bottom: 12px;
+}
+
+.success-message {
+  color: #15803d;
 }
 
 @media (max-width: 860px) {

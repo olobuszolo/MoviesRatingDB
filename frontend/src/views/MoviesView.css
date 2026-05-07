@@ -1,26 +1,21 @@
-.directors-layout {
+.movies-layout {
   align-items: start;
   display: grid;
   gap: 20px;
   grid-template-columns: 340px minmax(0, 1fr);
 }
 
-.directors-side {
-  display: grid;
-  gap: 20px;
-}
-
-.director-form {
+.movie-form {
   display: grid;
   gap: 14px;
 }
 
-.directors-panel {
+.movies-panel {
   min-width: 0;
 }
 
 @media (max-width: 860px) {
-  .directors-layout {
+  .movies-layout {
     grid-template-columns: 1fr;
   }
 }

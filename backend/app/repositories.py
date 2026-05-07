@@ -2,7 +2,14 @@ from uuid import uuid4
 
 from neo4j import Session
 
-from app.schemas import CategoryCreate, MovieCreate, UserCreate, DirectorCreate, ActorCreate
+from app.schemas import (
+    ActorCreate,
+    CategoryCreate,
+    DirectorCreate,
+    DirectorMovieAssignmentCreate,
+    MovieCreate,
+    UserCreate,
+)
 
 
 def create_constraints(session: Session) -> None:
@@ -17,33 +24,50 @@ def create_constraints(session: Session) -> None:
     session.run("CREATE CONSTRAINT actor_name_unique IF NOT EXISTS FOR (a:Actor) REQUIRE a.name IS UNIQUE")
 
 
-def create_movie(session: Session, payload: MovieCreate) -> dict:
+def create_movie(session: Session, payload: MovieCreate) -> dict | None:
     movie_id = str(uuid4())
     result = session.run(
         """
+        MATCH (c:Category {id: $category_id})
         CREATE (m:Movie {
             id: $id,
             title: $title,
             duration_minutes: $duration_minutes
         })
-        RETURN m
+        CREATE (m)-[:BELONGS_TO]->(c)
+        RETURN m, c
         """,
         id=movie_id,
         title=payload.title,
         duration_minutes=payload.duration_minutes,
+        category_id=payload.category_id,
     )
-    return dict(result.single()["m"])
+    record = result.single()
+
+    if record is None:
+        return None
+
+    return {
+        **dict(record["m"]),
+        "category": dict(record["c"]),
+    }
 
 
 def list_movies(session: Session) -> list[dict]:
     result = session.run(
         """
-        MATCH (m:Movie)
-        RETURN m
+        MATCH (m:Movie)-[:BELONGS_TO]->(c:Category)
+        RETURN m, c
         ORDER BY m.title
         """
     )
-    return [dict(record["m"]) for record in result]
+    return [
+        {
+            **dict(record["m"]),
+            "category": dict(record["c"]),
+        }
+        for record in result
+    ]
 
 
 def create_user(session: Session, payload: UserCreate) -> dict:
@@ -128,6 +152,69 @@ def list_directors(session: Session) -> list[dict]:
     )
     return [dict(record["d"]) for record in result]
 
+def assign_director_to_movie(
+    session: Session,
+    payload: DirectorMovieAssignmentCreate,
+) -> dict | None:
+    result = session.run(
+        """
+        MATCH (d:Director {id: $director_id})
+        MATCH (m:Movie {id: $movie_id})-[:BELONGS_TO]->(c:Category)
+        MERGE (d)-[r:DIRECTED]->(m)
+        SET r.release_year = $release_year
+        RETURN d, m, c, r
+        """,
+        director_id=payload.director_id,
+        movie_id=payload.movie_id,
+        release_year=payload.release_year,
+    )
+    record = result.single()
+
+    if record is None:
+        return None
+
+    return {
+        "director": dict(record["d"]),
+        "movie": {
+            **dict(record["m"]),
+            "category": dict(record["c"]),
+        },
+        "release_year": record["r"]["release_year"],
+    }
+
+
+def list_director_movies(session: Session, director_id: str) -> list[dict] | None:
+    director_exists = session.run(
+        """
+        MATCH (d:Director {id: $director_id})
+        RETURN d
+        """,
+        director_id=director_id,
+    ).single()
+
+    if director_exists is None:
+        return None
+
+    result = session.run(
+        """
+        MATCH (d:Director {id: $director_id})-[r:DIRECTED]->(m:Movie)-[:BELONGS_TO]->(c:Category)
+        RETURN m, c, r
+        ORDER BY r.release_year, m.title
+        """,
+        director_id=director_id,
+    )
+
+    return [
+        {
+            "movie": {
+                **dict(record["m"]),
+                "category": dict(record["c"]),
+            },
+            "release_year": record["r"]["release_year"],
+        }
+        for record in result
+    ]
+
 def create_actor(session: Session, payload: ActorCreate) -> dict:
     actor_id = str(uuid4())
     result = session.run(
@@ -156,51 +243,3 @@ def list_actors(session: Session) -> list[dict]:
         """
     )
     return [dict(record["a"]) for record in result]
-
-
-# def create_rating(session: Session, payload: RatingCreate) -> dict | None:
-#     result = session.run(
-#         """
-#         MATCH (u:User {id: $user_id})
-#         MATCH (m:Movie {id: $movie_id})
-#         MERGE (u)-[r:RATED]->(m)
-#         SET r.score = $score,
-#             r.review = $review
-#         RETURN u, m, r
-#         """,
-#         user_id=payload.user_id,
-#         movie_id=payload.movie_id,
-#         score=payload.score,
-#         review=payload.review,
-#     )
-#     record = result.single()
-
-#     if record is None:
-#         return None
-
-#     return {
-#         "user": dict(record["u"]),
-#         "movie": dict(record["m"]),
-#         "score": record["r"]["score"],
-#         "review": record["r"].get("review"),
-#     }
-
-
-# def list_user_ratings(session: Session, user_id: str) -> list[dict]:
-#     result = session.run(
-#         """
-#         MATCH (u:User {id: $user_id})-[r:RATED]->(m:Movie)
-#         RETURN u, m, r
-#         ORDER BY m.title
-#         """,
-#         user_id=user_id,
-#     )
-#     return [
-#         {
-#             "user": dict(record["u"]),
-#             "movie": dict(record["m"]),
-#             "score": record["r"]["score"],
-#             "review": record["r"].get("review"),
-#         }
-#         for record in result
-#     ]

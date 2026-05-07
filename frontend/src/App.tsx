@@ -3,7 +3,7 @@ import './App.css'
 import ActorsView from './views/ActorsView'
 import CategoriesView from './views/CategoriesView'
 import DirectorsView from './views/DirectorsView'
-import EmptyView from './views/EmptyView'
+import MoviesView from './views/MoviesView'
 import UsersView from './views/UsersView'
 
 type TabId = 'users' | 'movies' | 'categories' | 'actors' | 'directors'
@@ -18,7 +18,6 @@ const tabs: { id: TabId; label: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('users')
-  const activeTabLabel = tabs.find((tab) => tab.id === activeTab)?.label ?? ''
 
   return (
     <main className="app-shell">
@@ -50,7 +49,7 @@ function App() {
         {activeTab === 'categories' ? <CategoriesView /> : null}
         {activeTab === 'actors' ? <ActorsView /> : null}
         {activeTab === 'directors' ? <DirectorsView /> : null}
-        {activeTab === 'movies' ? <EmptyView label={activeTabLabel} /> : null}
+        {activeTab === 'movies' ? <MoviesView /> : null}
       </section>
     </main>
   )

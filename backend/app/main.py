@@ -8,6 +8,7 @@ from neo4j import Session
 from app.config import settings
 from app.database import db, get_session
 from app.repositories import (
+    assign_director_to_movie,
     create_actor,
     create_category,
     create_constraints,
@@ -16,11 +17,26 @@ from app.repositories import (
     create_director,
     list_actors,
     list_categories,
+    list_director_movies,
     list_movies,
     list_users,
     list_directors
 )
-from app.schemas import Category, CategoryCreate, Movie, MovieCreate, User, UserCreate, Director, DirectorCreate, Actor, ActorCreate
+from app.schemas import (
+    Actor,
+    ActorCreate,
+    Category,
+    CategoryCreate,
+    Director,
+    DirectorCreate,
+    DirectorMovieAssignment,
+    DirectorMovieAssignmentCreate,
+    DirectedMovie,
+    Movie,
+    MovieCreate,
+    User,
+    UserCreate,
+)
 
 
 @asynccontextmanager
@@ -51,7 +67,15 @@ DbSession = Annotated[Session, Depends(get_session)]
 
 @app.post("/movies", response_model=Movie, status_code=status.HTTP_201_CREATED)
 def add_movie(payload: MovieCreate, session: DbSession) -> dict:
-    return create_movie(session, payload)
+    movie = create_movie(session, payload)
+
+    if movie is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category was not found.",
+        )
+
+    return movie
 
 
 @app.get("/movies", response_model=list[Movie])
@@ -85,6 +109,39 @@ def add_director(payload: DirectorCreate, session: DbSession) -> dict:
 @app.get("/directors", response_model=list[Director])
 def get_directors(session: DbSession) -> list[dict]:
     return list_directors(session)
+
+
+@app.post(
+    "/directors/assign-movie",
+    response_model=DirectorMovieAssignment,
+    status_code=status.HTTP_201_CREATED,
+)
+def assign_movie_to_director(
+    payload: DirectorMovieAssignmentCreate,
+    session: DbSession,
+) -> dict:
+    assignment = assign_director_to_movie(session, payload)
+
+    if assignment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Director or movie was not found.",
+        )
+
+    return assignment
+
+
+@app.get("/directors/{director_id}/movies", response_model=list[DirectedMovie])
+def get_director_movies(director_id: str, session: DbSession) -> list[dict]:
+    movies = list_director_movies(session, director_id)
+
+    if movies is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Director was not found.",
+        )
+
+    return movies
 
 @app.post("/actors", response_model=Actor, status_code=status.HTTP_201_CREATED)
 def add_actor(payload: ActorCreate, session: DbSession) -> dict:
