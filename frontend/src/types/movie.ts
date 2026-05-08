@@ -18,3 +18,10 @@ export type MovieForm = {
   duration_minutes: string
   category_id: string
 }
+
+export type MovieRecommendation = {
+  movie: Movie
+  recommended_by: string
+  user_score: number
+  platform: string
+}

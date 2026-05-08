@@ -9,6 +9,12 @@ class Category(CategoryCreate):
     id: str
 
 
+class CategoryTopMovie(BaseModel):
+    movie: "Movie"
+    average_score: float
+    opinions_count: int
+
+
 class MovieCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     duration_minutes: int = Field(ge=1, le=500)
@@ -49,6 +55,13 @@ class Opinion(BaseModel):
 class MovieOpinion(BaseModel):
     username: str
     score: int
+    platform: str
+
+
+class MovieRecommendation(BaseModel):
+    movie: Movie
+    recommended_by: str
+    user_score: int
     platform: str
 
 

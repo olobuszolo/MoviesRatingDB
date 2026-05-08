@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { fetchCategories } from '../api/categories'
-import { createMovie, fetchMovies } from '../api/movies'
+import { createMovie, fetchMovieRecommendations, fetchMovies } from '../api/movies'
 import { createOpinion, fetchMovieOpinions } from '../api/opinions'
 import { fetchUsers } from '../api/users'
 import type { Category } from '../types/category'
-import type { Movie, MovieForm } from '../types/movie'
+import type { Movie, MovieForm, MovieRecommendation } from '../types/movie'
 import type { MovieOpinion, OpinionForm } from '../types/opinion'
 import type { User } from '../types/user'
 import './MoviesView.css'
@@ -31,13 +31,16 @@ function MoviesView() {
   const [categories, setCategories] = useState<Category[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [movieOpinions, setMovieOpinions] = useState<MovieOpinion[]>([])
+  const [movieRecommendations, setMovieRecommendations] = useState<MovieRecommendation[]>([])
   const [selectedOpinionMovieId, setSelectedOpinionMovieId] = useState('')
+  const [selectedRecommendationMovieId, setSelectedRecommendationMovieId] = useState('')
   const [form, setForm] = useState<MovieForm>(initialForm)
   const [opinionForm, setOpinionForm] = useState<OpinionForm>(initialOpinionForm)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAddingOpinion, setIsAddingOpinion] = useState(false)
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(false)
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [opinionMessage, setOpinionMessage] = useState<string | null>(null)
 
@@ -81,7 +84,9 @@ function MoviesView() {
       setCategories(categoriesData)
       setUsers(usersData)
       setMovieOpinions([])
+      setMovieRecommendations([])
       setSelectedOpinionMovieId('')
+      setSelectedRecommendationMovieId('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
     } finally {
@@ -138,6 +143,26 @@ function MoviesView() {
       setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
     } finally {
       setIsLoadingOpinions(false)
+    }
+  }
+
+  async function handleSelectedRecommendationMovieChange(movieId: string) {
+    setSelectedRecommendationMovieId(movieId)
+    setMovieRecommendations([])
+    setError(null)
+
+    if (!movieId) {
+      return
+    }
+
+    setIsLoadingRecommendations(true)
+
+    try {
+      setMovieRecommendations(await fetchMovieRecommendations(movieId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
+    } finally {
+      setIsLoadingRecommendations(false)
     }
   }
 
@@ -376,6 +401,65 @@ function MoviesView() {
                           <td>{opinion.username}</td>
                           <td>{opinion.score}</td>
                           <td>{opinion.platform}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Recommendations</h3>
+            <div className="movie-form">
+              <label>
+                Source movie
+                <select
+                  disabled={movies.length === 0}
+                  name="selected_recommendation_movie_id"
+                  onChange={(event) =>
+                    void handleSelectedRecommendationMovieChange(event.target.value)
+                  }
+                  value={selectedRecommendationMovieId}
+                >
+                  <option value="">Select movie</option>
+                  {movies.map((movie) => (
+                    <option key={movie.id} value={movie.id}>
+                      {movie.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {isLoadingRecommendations ? (
+                <p className="message">Loading recommendations...</p>
+              ) : null}
+
+              {!isLoadingRecommendations &&
+              selectedRecommendationMovieId &&
+              movieRecommendations.length === 0 ? (
+                <p className="message">No recommendations for this movie.</p>
+              ) : null}
+
+              {!isLoadingRecommendations && movieRecommendations.length > 0 ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Movie</th>
+                        <th>User</th>
+                        <th>Score</th>
+                        <th>Platform</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movieRecommendations.map((recommendation) => (
+                        <tr key={recommendation.movie.id}>
+                          <td>{recommendation.movie.title}</td>
+                          <td>{recommendation.recommended_by}</td>
+                          <td>{recommendation.user_score}</td>
+                          <td>{recommendation.platform}</td>
                         </tr>
                       ))}
                     </tbody>

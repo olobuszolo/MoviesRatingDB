@@ -23,6 +23,8 @@ from app.repositories import (
     list_director_movies,
     list_movie_opinions,
     list_movies,
+    list_top_movies_by_category,
+    recommend_movies_for_movie,
     list_users,
     list_directors
 )
@@ -34,6 +36,7 @@ from app.schemas import (
     ActorMovieAssignmentCreate,
     Category,
     CategoryCreate,
+    CategoryTopMovie,
     Director,
     DirectorCreate,
     DirectorMovieAssignment,
@@ -42,6 +45,7 @@ from app.schemas import (
     Movie,
     MovieCreate,
     MovieOpinion,
+    MovieRecommendation,
     Opinion,
     OpinionCreate,
     User,
@@ -106,6 +110,19 @@ def get_movie_opinions(movie_id: str, session: DbSession) -> list[dict]:
     return opinions
 
 
+@app.get("/movies/{movie_id}/recommendations", response_model=list[MovieRecommendation])
+def get_movie_recommendations(movie_id: str, session: DbSession) -> list[dict]:
+    recommendations = recommend_movies_for_movie(session, movie_id)
+
+    if recommendations is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movie was not found.",
+        )
+
+    return recommendations
+
+
 @app.post("/users", response_model=User, status_code=status.HTTP_201_CREATED)
 def add_user(payload: UserCreate, session: DbSession) -> dict:
     return create_user(session, payload)
@@ -137,6 +154,19 @@ def add_category(payload: CategoryCreate, session: DbSession) -> dict:
 @app.get("/categories", response_model=list[Category])
 def get_categories(session: DbSession) -> list[dict]:
     return list_categories(session)
+
+
+@app.get("/categories/{category_id}/top-movies", response_model=list[CategoryTopMovie])
+def get_category_top_movies(category_id: str, session: DbSession) -> list[dict]:
+    movies = list_top_movies_by_category(session, category_id)
+
+    if movies is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category was not found.",
+        )
+
+    return movies
 
 @app.post("/directors", response_model=Director, status_code=status.HTTP_201_CREATED)
 def add_director(payload: DirectorCreate, session: DbSession) -> dict:

@@ -1,4 +1,4 @@
-import type { Movie, MovieCreatePayload } from '../types/movie'
+import type { Movie, MovieCreatePayload, MovieRecommendation } from '../types/movie'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
@@ -26,4 +26,16 @@ export async function createMovie(payload: MovieCreatePayload): Promise<Movie> {
   }
 
   return (await response.json()) as Movie
+}
+
+export async function fetchMovieRecommendations(
+  movieId: string,
+): Promise<MovieRecommendation[]> {
+  const response = await fetch(`${API_URL}/movies/${movieId}/recommendations`)
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie pobrac rekomendacji.')
+  }
+
+  return (await response.json()) as MovieRecommendation[]
 }

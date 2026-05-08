@@ -1,4 +1,8 @@
-import type { Category, CategoryCreatePayload } from '../types/category'
+import type {
+  Category,
+  CategoryCreatePayload,
+  CategoryTopMovie,
+} from '../types/category'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
@@ -26,4 +30,14 @@ export async function createCategory(payload: CategoryCreatePayload): Promise<Ca
   }
 
   return (await response.json()) as Category
+}
+
+export async function fetchCategoryTopMovies(categoryId: string): Promise<CategoryTopMovie[]> {
+  const response = await fetch(`${API_URL}/categories/${categoryId}/top-movies`)
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie pobrac rankingu kategorii.')
+  }
+
+  return (await response.json()) as CategoryTopMovie[]
 }

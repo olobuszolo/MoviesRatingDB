@@ -166,6 +166,69 @@ def list_movie_opinions(session: Session, movie_id: str) -> list[dict] | None:
         for record in result
     ]
 
+
+def recommend_movies_for_movie(session: Session, movie_id: str) -> list[dict] | None:
+    movie_exists = session.run(
+        """
+        MATCH (m:Movie {id: $movie_id})
+        RETURN m
+        """,
+        movie_id=movie_id,
+    ).single()
+
+    if movie_exists is None:
+        return None
+
+    top_users = session.run(
+        """
+        MATCH (u:User)-[r:WATCHED]->(:Movie {id: $movie_id})
+        WITH u, max(r.score) AS best_score
+        RETURN u.id AS user_id,
+               u.username AS username,
+               best_score AS source_score
+        ORDER BY best_score DESC, u.username
+        LIMIT 5
+        """,
+        movie_id=movie_id,
+    )
+
+    recommendations: list[dict] = []
+    used_movie_ids = {movie_id}
+
+    for user in top_users:
+        candidates = session.run(
+            """
+            MATCH (:User {id: $user_id})-[r:WATCHED]->(m:Movie)-[:BELONGS_TO]->(c:Category)
+            WHERE m.id <> $source_movie_id
+            RETURN m, c, r
+            ORDER BY r.score DESC, m.title
+            """,
+            user_id=user["user_id"],
+            source_movie_id=movie_id,
+        )
+
+        for candidate in candidates:
+            candidate_movie = dict(candidate["m"])
+
+            if candidate_movie["id"] in used_movie_ids:
+                continue
+
+            used_movie_ids.add(candidate_movie["id"])
+            recommendations.append(
+                {
+                    "movie": {
+                        **candidate_movie,
+                        "category": dict(candidate["c"]),
+                    },
+                    "recommended_by": user["username"],
+                    "user_score": candidate["r"]["score"],
+                    "platform": candidate["r"]["platform"],
+                }
+            )
+            break
+
+    return recommendations
+
 def create_category(session: Session, payload: CategoryCreate) -> dict:
     category_id = str(uuid4())
     result = session.run(
@@ -190,6 +253,43 @@ def list_categories(session: Session) -> list[dict]:
         """
     )
     return [dict(record["c"]) for record in result]
+
+
+def list_top_movies_by_category(session: Session, category_id: str) -> list[dict] | None:
+    category_exists = session.run(
+        """
+        MATCH (c:Category {id: $category_id})
+        RETURN c
+        """,
+        category_id=category_id,
+    ).single()
+
+    if category_exists is None:
+        return None
+
+    result = session.run(
+        """
+        MATCH (m:Movie)-[:BELONGS_TO]->(c:Category {id: $category_id})
+        MATCH (:User)-[r:WATCHED]->(m)
+        WITH m, c, avg(r.score) AS average_score, count(r) AS opinions_count
+        RETURN m, c, average_score, opinions_count
+        ORDER BY average_score DESC, opinions_count DESC, m.title
+        LIMIT 5
+        """,
+        category_id=category_id,
+    )
+
+    return [
+        {
+            "movie": {
+                **dict(record["m"]),
+                "category": dict(record["c"]),
+            },
+            "average_score": round(record["average_score"], 2),
+            "opinions_count": record["opinions_count"],
+        }
+        for record in result
+    ]
 
 def create_director(session: Session, payload: DirectorCreate) -> dict:
     director_id = str(uuid4())
