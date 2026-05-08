@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { fetchCategories } from '../api/categories'
 import { createMovie, fetchMovies } from '../api/movies'
+import { createOpinion, fetchMovieOpinions } from '../api/opinions'
+import { fetchUsers } from '../api/users'
 import type { Category } from '../types/category'
 import type { Movie, MovieForm } from '../types/movie'
+import type { MovieOpinion, OpinionForm } from '../types/opinion'
+import type { User } from '../types/user'
 import './MoviesView.css'
 
 const initialForm: MovieForm = {
@@ -12,13 +16,30 @@ const initialForm: MovieForm = {
   category_id: '',
 }
 
+const initialOpinionForm: OpinionForm = {
+  user_id: '',
+  movie_id: '',
+  score: '',
+  platform: '',
+}
+
+const scores = Array.from({ length: 10 }, (_, index) => String(index + 1))
+const platforms = ['Netflix', 'HBO', 'Amazon', 'Disney', 'TV']
+
 function MoviesView() {
   const [movies, setMovies] = useState<Movie[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [movieOpinions, setMovieOpinions] = useState<MovieOpinion[]>([])
+  const [selectedOpinionMovieId, setSelectedOpinionMovieId] = useState('')
   const [form, setForm] = useState<MovieForm>(initialForm)
+  const [opinionForm, setOpinionForm] = useState<OpinionForm>(initialOpinionForm)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAddingOpinion, setIsAddingOpinion] = useState(false)
+  const [isLoadingOpinions, setIsLoadingOpinions] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [opinionMessage, setOpinionMessage] = useState<string | null>(null)
 
   const canSubmit = useMemo(() => {
     return (
@@ -30,6 +51,17 @@ function MoviesView() {
     )
   }, [form])
 
+  const canAddOpinion = useMemo(() => {
+    return (
+      opinionForm.user_id.length > 0 &&
+      opinionForm.movie_id.length > 0 &&
+      Number.isInteger(Number(opinionForm.score)) &&
+      Number(opinionForm.score) >= 1 &&
+      Number(opinionForm.score) <= 10 &&
+      opinionForm.platform.length > 0
+    )
+  }, [opinionForm])
+
   useEffect(() => {
     void loadMoviesData()
   }, [])
@@ -39,17 +71,73 @@ function MoviesView() {
     setError(null)
 
     try {
-      const [moviesData, categoriesData] = await Promise.all([
+      const [moviesData, categoriesData, usersData] = await Promise.all([
         fetchMovies(),
         fetchCategories(),
+        fetchUsers(),
       ])
 
       setMovies(moviesData)
       setCategories(categoriesData)
+      setUsers(usersData)
+      setMovieOpinions([])
+      setSelectedOpinionMovieId('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleCreateOpinion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!canAddOpinion) {
+      return
+    }
+
+    setIsAddingOpinion(true)
+    setError(null)
+    setOpinionMessage(null)
+
+    try {
+      await createOpinion({
+        user_id: opinionForm.user_id,
+        movie_id: opinionForm.movie_id,
+        score: Number(opinionForm.score),
+        platform: opinionForm.platform,
+      })
+
+      setOpinionForm(initialOpinionForm)
+      setOpinionMessage('Opinion added.')
+
+      if (selectedOpinionMovieId === opinionForm.movie_id) {
+        setMovieOpinions(await fetchMovieOpinions(selectedOpinionMovieId))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
+    } finally {
+      setIsAddingOpinion(false)
+    }
+  }
+
+  async function handleSelectedOpinionMovieChange(movieId: string) {
+    setSelectedOpinionMovieId(movieId)
+    setMovieOpinions([])
+    setError(null)
+
+    if (!movieId) {
+      return
+    }
+
+    setIsLoadingOpinions(true)
+
+    try {
+      setMovieOpinions(await fetchMovieOpinions(movieId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
+    } finally {
+      setIsLoadingOpinions(false)
     }
   }
 
@@ -92,65 +180,211 @@ function MoviesView() {
       </header>
 
       <div className="movies-layout">
-        <section className="panel">
-          <h3>Add movie</h3>
-          <form className="movie-form" onSubmit={(event) => void handleCreateMovie(event)}>
-            <label>
-              Title
-              <input
-                minLength={1}
-                name="title"
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="Inception"
-                required
-                type="text"
-                value={form.title}
-              />
-            </label>
+        <div className="movies-side">
+          <section className="panel">
+            <h3>Add movie</h3>
+            <form className="movie-form" onSubmit={(event) => void handleCreateMovie(event)}>
+              <label>
+                Title
+                <input
+                  minLength={1}
+                  name="title"
+                  onChange={(event) => setForm({ ...form, title: event.target.value })}
+                  placeholder="Inception"
+                  required
+                  type="text"
+                  value={form.title}
+                />
+              </label>
 
-            <label>
-              Duration minutes
-              <input
-                max={500}
-                min={1}
-                name="duration_minutes"
-                onChange={(event) =>
-                  setForm({ ...form, duration_minutes: event.target.value })
-                }
-                placeholder="148"
-                required
-                type="number"
-                value={form.duration_minutes}
-              />
-            </label>
+              <label>
+                Duration minutes
+                <input
+                  max={500}
+                  min={1}
+                  name="duration_minutes"
+                  onChange={(event) =>
+                    setForm({ ...form, duration_minutes: event.target.value })
+                  }
+                  placeholder="148"
+                  required
+                  type="number"
+                  value={form.duration_minutes}
+                />
+              </label>
 
-            <label>
-              Category
-              <select
-                disabled={categories.length === 0}
-                name="category_id"
-                onChange={(event) => setForm({ ...form, category_id: event.target.value })}
-                required
-                value={form.category_id}
+              <label>
+                Category
+                <select
+                  disabled={categories.length === 0}
+                  name="category_id"
+                  onChange={(event) => setForm({ ...form, category_id: event.target.value })}
+                  required
+                  value={form.category_id}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {categories.length === 0 && !isLoading ? (
+                <p className="message">Create a category before adding movies.</p>
+              ) : null}
+
+              <button className="primary-button" disabled={!canSubmit || isSubmitting} type="submit">
+                {isSubmitting ? 'Adding...' : 'Add movie'}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel">
+            <h3>Add opinion</h3>
+            <form className="movie-form" onSubmit={(event) => void handleCreateOpinion(event)}>
+              <label>
+                User
+                <select
+                  disabled={users.length === 0}
+                  name="user_id"
+                  onChange={(event) =>
+                    setOpinionForm({ ...opinionForm, user_id: event.target.value })
+                  }
+                  required
+                  value={opinionForm.user_id}
+                >
+                  <option value="">Select user</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Movie
+                <select
+                  disabled={movies.length === 0}
+                  name="movie_id"
+                  onChange={(event) =>
+                    setOpinionForm({ ...opinionForm, movie_id: event.target.value })
+                  }
+                  required
+                  value={opinionForm.movie_id}
+                >
+                  <option value="">Select movie</option>
+                  {movies.map((movie) => (
+                    <option key={movie.id} value={movie.id}>
+                      {movie.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Score
+                <select
+                  name="score"
+                  onChange={(event) =>
+                    setOpinionForm({ ...opinionForm, score: event.target.value })
+                  }
+                  required
+                  value={opinionForm.score}
+                >
+                  <option value="">Select score</option>
+                  {scores.map((score) => (
+                    <option key={score} value={score}>
+                      {score}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Platform
+                <select
+                  name="platform"
+                  onChange={(event) =>
+                    setOpinionForm({ ...opinionForm, platform: event.target.value })
+                  }
+                  required
+                  value={opinionForm.platform}
+                >
+                  <option value="">Select platform</option>
+                  {platforms.map((platform) => (
+                    <option key={platform} value={platform}>
+                      {platform}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {opinionMessage ? <p className="message success-message">{opinionMessage}</p> : null}
+
+              <button
+                className="primary-button"
+                disabled={!canAddOpinion || isAddingOpinion}
+                type="submit"
               >
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                {isAddingOpinion ? 'Adding...' : 'Add opinion'}
+              </button>
+            </form>
+          </section>
 
-            {categories.length === 0 && !isLoading ? (
-              <p className="message">Create a category before adding movies.</p>
-            ) : null}
+          <section className="panel">
+            <h3>Movie opinions</h3>
+            <div className="movie-form">
+              <label>
+                Movie
+                <select
+                  disabled={movies.length === 0}
+                  name="selected_opinion_movie_id"
+                  onChange={(event) => void handleSelectedOpinionMovieChange(event.target.value)}
+                  value={selectedOpinionMovieId}
+                >
+                  <option value="">Select movie</option>
+                  {movies.map((movie) => (
+                    <option key={movie.id} value={movie.id}>
+                      {movie.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <button className="primary-button" disabled={!canSubmit || isSubmitting} type="submit">
-              {isSubmitting ? 'Adding...' : 'Add movie'}
-            </button>
-          </form>
-        </section>
+              {isLoadingOpinions ? <p className="message">Loading opinions...</p> : null}
+
+              {!isLoadingOpinions && selectedOpinionMovieId && movieOpinions.length === 0 ? (
+                <p className="message">No opinions for this movie.</p>
+              ) : null}
+
+              {!isLoadingOpinions && movieOpinions.length > 0 ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Score</th>
+                        <th>Platform</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movieOpinions.map((opinion) => (
+                        <tr key={`${opinion.username}-${opinion.platform}`}>
+                          <td>{opinion.username}</td>
+                          <td>{opinion.score}</td>
+                          <td>{opinion.platform}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
 
         <section className="panel movies-panel">
           <div className="panel-title-row">

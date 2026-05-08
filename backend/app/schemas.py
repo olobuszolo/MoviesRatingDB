@@ -31,6 +31,27 @@ class UserCreate(BaseModel):
 class User(UserCreate):
     id: str
 
+
+class OpinionCreate(BaseModel):
+    user_id: str
+    movie_id: str
+    score: int = Field(ge=1, le=10)
+    platform: str = Field(min_length=1, max_length=80)
+
+
+class Opinion(BaseModel):
+    user: User
+    movie: Movie
+    score: int
+    platform: str
+
+
+class MovieOpinion(BaseModel):
+    username: str
+    score: int
+    platform: str
+
+
 class DirectorCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     country: str = Field(min_length=2, max_length=80)

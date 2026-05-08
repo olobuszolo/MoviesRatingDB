@@ -9,6 +9,7 @@ from app.schemas import (
     DirectorCreate,
     DirectorMovieAssignmentCreate,
     MovieCreate,
+    OpinionCreate,
     UserCreate,
 )
 
@@ -100,6 +101,70 @@ def list_users(session: Session) -> list[dict]:
         """
     )
     return [dict(record["u"]) for record in result]
+
+
+def create_opinion(session: Session, payload: OpinionCreate) -> dict | None:
+    result = session.run(
+        """
+        MATCH (u:User {id: $user_id})
+        MATCH (m:Movie {id: $movie_id})-[:BELONGS_TO]->(c:Category)
+        MERGE (u)-[r:WATCHED]->(m)
+        SET r.score = $score,
+            r.platform = $platform
+        RETURN u, m, c, r
+        """,
+        user_id=payload.user_id,
+        movie_id=payload.movie_id,
+        score=payload.score,
+        platform=payload.platform,
+    )
+    record = result.single()
+
+    if record is None:
+        return None
+
+    return {
+        "user": dict(record["u"]),
+        "movie": {
+            **dict(record["m"]),
+            "category": dict(record["c"]),
+        },
+        "score": record["r"]["score"],
+        "platform": record["r"]["platform"],
+    }
+
+
+def list_movie_opinions(session: Session, movie_id: str) -> list[dict] | None:
+    movie_exists = session.run(
+        """
+        MATCH (m:Movie {id: $movie_id})
+        RETURN m
+        """,
+        movie_id=movie_id,
+    ).single()
+
+    if movie_exists is None:
+        return None
+
+    result = session.run(
+        """
+        MATCH (u:User)-[r:WATCHED]->(m:Movie {id: $movie_id})
+        RETURN u.username AS username,
+               r.score AS score,
+               r.platform AS platform
+        ORDER BY r.score DESC, u.username
+        """,
+        movie_id=movie_id,
+    )
+
+    return [
+        {
+            "username": record["username"],
+            "score": record["score"],
+            "platform": record["platform"],
+        }
+        for record in result
+    ]
 
 def create_category(session: Session, payload: CategoryCreate) -> dict:
     category_id = str(uuid4())

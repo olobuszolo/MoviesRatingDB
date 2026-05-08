@@ -5,6 +5,11 @@
   grid-template-columns: 340px minmax(0, 1fr);
 }
 
+.movies-side {
+  display: grid;
+  gap: 20px;
+}
+
 .movie-form {
   display: grid;
   gap: 14px;

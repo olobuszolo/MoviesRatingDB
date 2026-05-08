@@ -14,12 +14,14 @@ from app.repositories import (
     create_category,
     create_constraints,
     create_movie,
+    create_opinion,
     create_user,
     create_director,
     list_actors,
     list_actor_movies,
     list_categories,
     list_director_movies,
+    list_movie_opinions,
     list_movies,
     list_users,
     list_directors
@@ -39,6 +41,9 @@ from app.schemas import (
     DirectedMovie,
     Movie,
     MovieCreate,
+    MovieOpinion,
+    Opinion,
+    OpinionCreate,
     User,
     UserCreate,
 )
@@ -88,6 +93,19 @@ def get_movies(session: DbSession) -> list[dict]:
     return list_movies(session)
 
 
+@app.get("/movies/{movie_id}/opinions", response_model=list[MovieOpinion])
+def get_movie_opinions(movie_id: str, session: DbSession) -> list[dict]:
+    opinions = list_movie_opinions(session, movie_id)
+
+    if opinions is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movie was not found.",
+        )
+
+    return opinions
+
+
 @app.post("/users", response_model=User, status_code=status.HTTP_201_CREATED)
 def add_user(payload: UserCreate, session: DbSession) -> dict:
     return create_user(session, payload)
@@ -96,6 +114,19 @@ def add_user(payload: UserCreate, session: DbSession) -> dict:
 @app.get("/users", response_model=list[User])
 def get_users(session: DbSession) -> list[dict]:
     return list_users(session)
+
+
+@app.post("/opinions", response_model=Opinion, status_code=status.HTTP_201_CREATED)
+def add_opinion(payload: OpinionCreate, session: DbSession) -> dict:
+    opinion = create_opinion(session, payload)
+
+    if opinion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User or movie was not found.",
+        )
+
+    return opinion
 
 
 @app.post("/categories", response_model=Category, status_code=status.HTTP_201_CREATED)
