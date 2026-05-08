@@ -8,6 +8,7 @@ from neo4j import Session
 from app.config import settings
 from app.database import db, get_session
 from app.repositories import (
+    assign_actor_to_movie,
     assign_director_to_movie,
     create_actor,
     create_category,
@@ -16,6 +17,7 @@ from app.repositories import (
     create_user,
     create_director,
     list_actors,
+    list_actor_movies,
     list_categories,
     list_director_movies,
     list_movies,
@@ -23,8 +25,11 @@ from app.repositories import (
     list_directors
 )
 from app.schemas import (
+    ActedMovie,
     Actor,
     ActorCreate,
+    ActorMovieAssignment,
+    ActorMovieAssignmentCreate,
     Category,
     CategoryCreate,
     Director,
@@ -131,6 +136,19 @@ def assign_movie_to_director(
     return assignment
 
 
+@app.get("/actors/{actor_id}/movies", response_model=list[ActedMovie])
+def get_actor_movies(actor_id: str, session: DbSession) -> list[dict]:
+    movies = list_actor_movies(session, actor_id)
+
+    if movies is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Actor was not found.",
+        )
+
+    return movies
+
+
 @app.get("/directors/{director_id}/movies", response_model=list[DirectedMovie])
 def get_director_movies(director_id: str, session: DbSession) -> list[dict]:
     movies = list_director_movies(session, director_id)
@@ -150,3 +168,23 @@ def add_actor(payload: ActorCreate, session: DbSession) -> dict:
 @app.get("/actors", response_model=list[Actor])
 def get_actors(session: DbSession) -> list[dict]:
     return list_actors(session)
+
+
+@app.post(
+    "/actors/assign-movie",
+    response_model=ActorMovieAssignment,
+    status_code=status.HTTP_201_CREATED,
+)
+def assign_movie_to_actor(
+    payload: ActorMovieAssignmentCreate,
+    session: DbSession,
+) -> dict:
+    assignment = assign_actor_to_movie(session, payload)
+
+    if assignment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Actor or movie was not found.",
+        )
+
+    return assignment

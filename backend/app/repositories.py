@@ -4,6 +4,7 @@ from neo4j import Session
 
 from app.schemas import (
     ActorCreate,
+    ActorMovieAssignmentCreate,
     CategoryCreate,
     DirectorCreate,
     DirectorMovieAssignmentCreate,
@@ -243,3 +244,67 @@ def list_actors(session: Session) -> list[dict]:
         """
     )
     return [dict(record["a"]) for record in result]
+
+
+def assign_actor_to_movie(
+    session: Session,
+    payload: ActorMovieAssignmentCreate,
+) -> dict | None:
+    result = session.run(
+        """
+        MATCH (a:Actor {id: $actor_id})
+        MATCH (m:Movie {id: $movie_id})-[:BELONGS_TO]->(c:Category)
+        MERGE (a)-[r:ACTED_IN]->(m)
+        SET r.role_type = $role_type
+        RETURN a, m, c, r
+        """,
+        actor_id=payload.actor_id,
+        movie_id=payload.movie_id,
+        role_type=payload.role_type,
+    )
+    record = result.single()
+
+    if record is None:
+        return None
+
+    return {
+        "actor": dict(record["a"]),
+        "movie": {
+            **dict(record["m"]),
+            "category": dict(record["c"]),
+        },
+        "role_type": record["r"]["role_type"],
+    }
+
+
+def list_actor_movies(session: Session, actor_id: str) -> list[dict] | None:
+    actor_exists = session.run(
+        """
+        MATCH (a:Actor {id: $actor_id})
+        RETURN a
+        """,
+        actor_id=actor_id,
+    ).single()
+
+    if actor_exists is None:
+        return None
+
+    result = session.run(
+        """
+        MATCH (a:Actor {id: $actor_id})-[r:ACTED_IN]->(m:Movie)-[:BELONGS_TO]->(c:Category)
+        RETURN m, c, r
+        ORDER BY m.title
+        """,
+        actor_id=actor_id,
+    )
+
+    return [
+        {
+            "movie": {
+                **dict(record["m"]),
+                "category": dict(record["c"]),
+            },
+            "role_type": record["r"]["role_type"],
+        }
+        for record in result
+    ]

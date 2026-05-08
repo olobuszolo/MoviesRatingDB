@@ -64,3 +64,20 @@ class ActorCreate(BaseModel):
 
 class Actor(ActorCreate):
     id: str
+
+
+class ActorMovieAssignmentCreate(BaseModel):
+    actor_id: str
+    movie_id: str
+    role_type: str = Field(min_length=1, max_length=80)
+
+
+class ActorMovieAssignment(BaseModel):
+    actor: Actor
+    movie: Movie
+    role_type: str
+
+
+class ActedMovie(BaseModel):
+    movie: Movie
+    role_type: str

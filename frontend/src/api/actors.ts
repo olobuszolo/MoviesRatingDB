@@ -1,4 +1,9 @@
-import type { Actor, ActorCreatePayload } from '../types/actor'
+import type {
+  ActedMovie,
+  Actor,
+  ActorCreatePayload,
+  ActorMovieAssignmentPayload,
+} from '../types/actor'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
@@ -26,4 +31,28 @@ export async function createActor(payload: ActorCreatePayload): Promise<Actor> {
   }
 
   return (await response.json()) as Actor
+}
+
+export async function assignActorToMovie(payload: ActorMovieAssignmentPayload): Promise<void> {
+  const response = await fetch(`${API_URL}/actors/assign-movie`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie przypisac aktora do filmu.')
+  }
+}
+
+export async function fetchActorMovies(actorId: string): Promise<ActedMovie[]> {
+  const response = await fetch(`${API_URL}/actors/${actorId}/movies`)
+
+  if (!response.ok) {
+    throw new Error('Nie udalo sie pobrac filmow aktora.')
+  }
+
+  return (await response.json()) as ActedMovie[]
 }
