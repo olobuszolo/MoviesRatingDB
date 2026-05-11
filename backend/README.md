@@ -30,14 +30,6 @@ Dokumentacja Swagger: `http://127.0.0.1:8000/docs`.
 
 Panel Neo4j Browser: `http://localhost:7474`.
 
-## Dane testowe
-
-Po uruchomieniu Neo4j mozesz wypelnic baze przykladowymi danymi:
-
-```powershell
-python seed_data.py
-```
-
 Skrypt tworzy kategorie, filmy, uzytkownikow, opinie, rezyserow, aktorow oraz relacje:
 
 - `(Movie)-[:BELONGS_TO]->(Category)`
