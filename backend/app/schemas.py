@@ -38,6 +38,12 @@ class User(UserCreate):
     id: str
 
 
+class WatchedMovie(BaseModel):
+    movie: "Movie"
+    score: int
+    platform: str
+
+
 class OpinionCreate(BaseModel):
     user_id: str
     movie_id: str

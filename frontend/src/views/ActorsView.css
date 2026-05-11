@@ -19,6 +19,12 @@
   min-width: 0;
 }
 
+.actors-results {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
 @media (max-width: 860px) {
   .actors-layout {
     grid-template-columns: 1fr;

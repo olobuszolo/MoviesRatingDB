@@ -22,6 +22,7 @@ from app.repositories import (
     list_categories,
     list_director_movies,
     list_movie_opinions,
+    list_movies_watched_by_user,
     list_movies,
     list_top_movies_by_category,
     recommend_movies_for_movie,
@@ -50,6 +51,7 @@ from app.schemas import (
     OpinionCreate,
     User,
     UserCreate,
+    WatchedMovie,
 )
 
 
@@ -131,6 +133,19 @@ def add_user(payload: UserCreate, session: DbSession) -> dict:
 @app.get("/users", response_model=list[User])
 def get_users(session: DbSession) -> list[dict]:
     return list_users(session)
+
+
+@app.get("/users/{user_id}/watched-movies", response_model=list[WatchedMovie])
+def get_user_watched_movies(user_id: str, session: DbSession) -> list[dict]:
+    movies = list_movies_watched_by_user(session, user_id)
+
+    if movies is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User was not found.",
+        )
+
+    return movies
 
 
 @app.post("/opinions", response_model=Opinion, status_code=status.HTTP_201_CREATED)
@@ -227,8 +242,12 @@ def add_actor(payload: ActorCreate, session: DbSession) -> dict:
     return create_actor(session, payload)
 
 @app.get("/actors", response_model=list[Actor])
-def get_actors(session: DbSession) -> list[dict]:
-    return list_actors(session)
+def get_actors(
+    session: DbSession,
+    age: int | None = None,
+    country: str | None = None,
+) -> list[dict]:
+    return list_actors(session, age=age, country=country)
 
 
 @app.post(

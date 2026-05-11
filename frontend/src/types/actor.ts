@@ -19,6 +19,11 @@ export type ActorForm = {
   country: string
 }
 
+export type ActorFilterForm = {
+  age: string
+  country: string
+}
+
 export type ActorMovieAssignmentPayload = {
   actor_id: string
   movie_id: string

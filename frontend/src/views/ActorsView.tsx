@@ -10,6 +10,7 @@ import { fetchMovies } from '../api/movies'
 import type {
   ActedMovie,
   Actor,
+  ActorFilterForm,
   ActorForm,
   ActorMovieAssignmentForm,
 } from '../types/actor'
@@ -18,6 +19,11 @@ import './ActorsView.css'
 
 const initialForm: ActorForm = {
   name: '',
+  age: '',
+  country: '',
+}
+
+const initialFilterForm: ActorFilterForm = {
   age: '',
   country: '',
 }
@@ -37,13 +43,16 @@ const roleTypes = [
 
 function ActorsView() {
   const [actors, setActors] = useState<Actor[]>([])
+  const [filteredActors, setFilteredActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [actedMovies, setActedMovies] = useState<ActedMovie[]>([])
   const [selectedActorId, setSelectedActorId] = useState('')
   const [form, setForm] = useState<ActorForm>(initialForm)
+  const [filterForm, setFilterForm] = useState<ActorFilterForm>(initialFilterForm)
   const [assignmentForm, setAssignmentForm] =
     useState<ActorMovieAssignmentForm>(initialAssignmentForm)
   const [isLoading, setIsLoading] = useState(true)
+  const [isFiltering, setIsFiltering] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAssigning, setIsAssigning] = useState(false)
   const [isLoadingActedMovies, setIsLoadingActedMovies] = useState(false)
@@ -68,6 +77,21 @@ function ActorsView() {
     )
   }, [assignmentForm])
 
+  const actorCountries = useMemo(() => {
+    return Array.from(new Set(actors.map((actor) => actor.country))).sort((a, b) =>
+      a.localeCompare(b),
+    )
+  }, [actors])
+
+  const canFilter = useMemo(() => {
+    return (
+      filterForm.country.trim().length > 0 ||
+      (Number.isInteger(Number(filterForm.age)) &&
+        Number(filterForm.age) >= 0 &&
+        Number(filterForm.age) <= 120)
+    )
+  }, [filterForm])
+
   useEffect(() => {
     void loadActors()
   }, [])
@@ -83,6 +107,8 @@ function ActorsView() {
       ])
 
       setActors(actorsData)
+      setFilteredActors([])
+      setFilterForm(initialFilterForm)
       setMovies(moviesData)
       setActedMovies([])
       setSelectedActorId('')
@@ -91,6 +117,35 @@ function ActorsView() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  async function handleFilterActors(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!canFilter) {
+      return
+    }
+
+    setIsFiltering(true)
+    setError(null)
+
+    try {
+      setFilteredActors(
+        await fetchActors({
+          age: filterForm.age,
+          country: filterForm.country,
+        }),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
+    } finally {
+      setIsFiltering(false)
+    }
+  }
+
+  function clearActorFilters() {
+    setFilterForm(initialFilterForm)
+    setFilteredActors([])
   }
 
   async function handleAssignActorToMovie(event: FormEvent<HTMLFormElement>) {
@@ -370,46 +425,123 @@ function ActorsView() {
               ) : null}
             </div>
           </section>
+
+          <section className="panel">
+            <h3>Filter actors</h3>
+            <form className="actor-form" onSubmit={(event) => void handleFilterActors(event)}>
+              <label>
+                Age
+                <input
+                  max={120}
+                  min={0}
+                  name="filter_age"
+                  onChange={(event) =>
+                    setFilterForm({ ...filterForm, age: event.target.value })
+                  }
+                  placeholder="35"
+                  type="number"
+                  value={filterForm.age}
+                />
+              </label>
+
+              <label>
+                Country
+                <select
+                  name="filter_country"
+                  onChange={(event) =>
+                    setFilterForm({ ...filterForm, country: event.target.value })
+                  }
+                  value={filterForm.country}
+                >
+                  <option value="">Any country</option>
+                  {actorCountries.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button className="primary-button" disabled={!canFilter || isFiltering} type="submit">
+                {isFiltering ? 'Filtering...' : 'Show actors'}
+              </button>
+              <button className="secondary-button" onClick={clearActorFilters} type="button">
+                Clear
+              </button>
+            </form>
+          </section>
         </div>
 
-        <section className="panel actors-panel">
-          <div className="panel-title-row">
-            <h3>All actors</h3>
-            <span>{actors.length}</span>
-          </div>
+        <div className="actors-results">
+          <ActorsTable
+            actors={actors}
+            error={error}
+            isLoading={isLoading}
+            title="All actors"
+          />
 
-          {error ? <p className="message error-message">{error}</p> : null}
-          {isLoading ? <p className="message">Loading actors...</p> : null}
-
-          {!isLoading && actors.length === 0 ? <p className="message">No actors yet.</p> : null}
-
-          {!isLoading && actors.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Age</th>
-                    <th>Country</th>
-                    <th>ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actors.map((actor) => (
-                    <tr key={actor.id}>
-                      <td>{actor.name}</td>
-                      <td>{actor.age}</td>
-                      <td>{actor.country}</td>
-                      <td className="muted-cell">{actor.id}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+          <ActorsTable
+            actors={filteredActors}
+            emptyMessage="No actors match these filters."
+            isLoading={isFiltering}
+            title="Filtered actors"
+          />
+        </div>
       </div>
     </>
+  )
+}
+
+function ActorsTable({
+  actors,
+  emptyMessage = 'No actors yet.',
+  error,
+  isLoading,
+  title,
+}: {
+  actors: Actor[]
+  emptyMessage?: string
+  error?: string | null
+  isLoading: boolean
+  title: string
+}) {
+  return (
+    <section className="panel actors-panel">
+      <div className="panel-title-row">
+        <h3>{title}</h3>
+        <span>{actors.length}</span>
+      </div>
+
+      {error ? <p className="message error-message">{error}</p> : null}
+      {isLoading ? <p className="message">Loading actors...</p> : null}
+
+      {!isLoading && actors.length === 0 ? <p className="message">{emptyMessage}</p> : null}
+
+      {!isLoading && actors.length > 0 ? (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Country</th>
+                <th>ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {actors.map((actor) => (
+                <tr key={actor.id}>
+                  <td>{actor.name}</td>
+                  <td>{actor.age}</td>
+                  <td>{actor.country}</td>
+                  <td className="muted-cell">{actor.id}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
   )
 }
 

@@ -16,6 +16,7 @@ from app.schemas import (
 
 def create_constraints(session: Session) -> None:
     session.run("CREATE CONSTRAINT movie_id_unique IF NOT EXISTS FOR (m:Movie) REQUIRE m.id IS UNIQUE")
+    session.run("CREATE CONSTRAINT movie_title_unique IF NOT EXISTS FOR (m:Movie) REQUIRE m.title IS UNIQUE")
     session.run("CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE")
     session.run("CREATE CONSTRAINT username_unique IF NOT EXISTS FOR (u:User) REQUIRE u.username IS UNIQUE")
     session.run("CREATE CONSTRAINT category_id_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.id IS UNIQUE")
@@ -400,13 +401,17 @@ def create_actor(session: Session, payload: ActorCreate) -> dict:
     )
     return dict(result.single()["a"])
 
-def list_actors(session: Session) -> list[dict]:
+def list_actors(session: Session, age: int | None = None, country: str | None = None) -> list[dict]:
     result = session.run(
         """
         MATCH (a:Actor)
+        WHERE ($age IS NULL OR a.age = $age)
+          AND ($country IS NULL OR toLower(a.country) = toLower($country))
         RETURN a
         ORDER BY a.name
-        """
+        """,
+        age=age,
+        country=country,
     )
     return [dict(record["a"]) for record in result]
 
@@ -470,6 +475,39 @@ def list_actor_movies(session: Session, actor_id: str) -> list[dict] | None:
                 "category": dict(record["c"]),
             },
             "role_type": record["r"]["role_type"],
+        }
+        for record in result
+    ]
+
+def list_movies_watched_by_user(session: Session, user_id: str) -> list[dict] | None:
+    user_exists = session.run(
+        """
+        MATCH (u:User {id: $user_id})
+        RETURN u
+        """,
+        user_id=user_id,
+    ).single()
+
+    if user_exists is None:
+        return None
+
+    result = session.run(
+        """
+        MATCH (u:User {id: $user_id})-[r:WATCHED]->(m:Movie)-[:BELONGS_TO]->(c:Category)
+        RETURN m, c, r
+        ORDER BY r.score DESC, m.title
+        """,
+        user_id=user_id,
+    )
+
+    return [
+        {
+            "movie": {
+                **dict(record["m"]),
+                "category": dict(record["c"]),
+            },
+            "score": record["r"]["score"],
+            "platform": record["r"]["platform"],
         }
         for record in result
     ]

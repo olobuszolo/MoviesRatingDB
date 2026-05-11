@@ -5,6 +5,11 @@
   grid-template-columns: 340px minmax(0, 1fr);
 }
 
+.users-side {
+  display: grid;
+  gap: 20px;
+}
+
 .user-form {
   display: grid;
   gap: 14px;

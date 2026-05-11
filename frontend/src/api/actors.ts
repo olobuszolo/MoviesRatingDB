@@ -7,8 +7,21 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
-export async function fetchActors(): Promise<Actor[]> {
-  const response = await fetch(`${API_URL}/actors`)
+export async function fetchActors(filters?: { age?: string; country?: string }): Promise<Actor[]> {
+  const params = new URLSearchParams()
+
+  if (filters?.age) {
+    params.set('age', filters.age)
+  }
+
+  const country = filters?.country?.trim()
+
+  if (country) {
+    params.set('country', country)
+  }
+
+  const query = params.toString()
+  const response = await fetch(`${API_URL}/actors${query ? `?${query}` : ''}`)
 
   if (!response.ok) {
     throw new Error('Nie udalo sie pobrac aktorow.')

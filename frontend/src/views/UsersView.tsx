@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { createUser, fetchUsers } from '../api/users'
-import type { User, UserForm } from '../types/user'
+import { createUser, fetchUsers, fetchUserWatchedMovies } from '../api/users'
+import type { User, UserForm, WatchedMovie } from '../types/user'
 import './UsersView.css'
 
 const initialForm: UserForm = {
@@ -12,8 +12,11 @@ const initialForm: UserForm = {
 
 function UsersView() {
   const [users, setUsers] = useState<User[]>([])
+  const [watchedMovies, setWatchedMovies] = useState<WatchedMovie[]>([])
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [form, setForm] = useState<UserForm>(initialForm)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingWatchedMovies, setIsLoadingWatchedMovies] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,10 +40,32 @@ function UsersView() {
 
     try {
       setUsers(await fetchUsers())
+      setWatchedMovies([])
+      setSelectedUserId('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleSelectedUserChange(userId: string) {
+    setSelectedUserId(userId)
+    setWatchedMovies([])
+    setError(null)
+
+    if (!userId) {
+      return
+    }
+
+    setIsLoadingWatchedMovies(true)
+
+    try {
+      setWatchedMovies(await fetchUserWatchedMovies(userId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Wystapil nieznany blad.')
+    } finally {
+      setIsLoadingWatchedMovies(false)
     }
   }
 
@@ -83,54 +108,109 @@ function UsersView() {
       </header>
 
       <div className="users-layout">
-        <section className="panel">
-          <h3>Add user</h3>
-          <form className="user-form" onSubmit={(event) => void handleCreateUser(event)}>
-            <label>
-              Username
-              <input
-                minLength={2}
-                name="username"
-                onChange={(event) => setForm({ ...form, username: event.target.value })}
-                placeholder="Tomek"
-                required
-                type="text"
-                value={form.username}
-              />
-            </label>
+        <div className="users-side">
+          <section className="panel">
+            <h3>Add user</h3>
+            <form className="user-form" onSubmit={(event) => void handleCreateUser(event)}>
+              <label>
+                Username
+                <input
+                  minLength={2}
+                  name="username"
+                  onChange={(event) => setForm({ ...form, username: event.target.value })}
+                  placeholder="Tomek"
+                  required
+                  type="text"
+                  value={form.username}
+                />
+              </label>
 
-            <label>
-              Country
-              <input
-                minLength={2}
-                name="country"
-                onChange={(event) => setForm({ ...form, country: event.target.value })}
-                placeholder="Poland"
-                required
-                type="text"
-                value={form.country}
-              />
-            </label>
+              <label>
+                Country
+                <input
+                  minLength={2}
+                  name="country"
+                  onChange={(event) => setForm({ ...form, country: event.target.value })}
+                  placeholder="Poland"
+                  required
+                  type="text"
+                  value={form.country}
+                />
+              </label>
 
-            <label>
-              Age
-              <input
-                max={120}
-                min={0}
-                name="age"
-                onChange={(event) => setForm({ ...form, age: event.target.value })}
-                placeholder="24"
-                required
-                type="number"
-                value={form.age}
-              />
-            </label>
+              <label>
+                Age
+                <input
+                  max={120}
+                  min={0}
+                  name="age"
+                  onChange={(event) => setForm({ ...form, age: event.target.value })}
+                  placeholder="24"
+                  required
+                  type="number"
+                  value={form.age}
+                />
+              </label>
 
-            <button className="primary-button" disabled={!canSubmit || isSubmitting} type="submit">
-              {isSubmitting ? 'Adding...' : 'Add user'}
-            </button>
-          </form>
-        </section>
+              <button className="primary-button" disabled={!canSubmit || isSubmitting} type="submit">
+                {isSubmitting ? 'Adding...' : 'Add user'}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel">
+            <h3>Watched movies</h3>
+            <div className="user-form">
+              <label>
+                User
+                <select
+                  disabled={users.length === 0}
+                  name="selected_user_id"
+                  onChange={(event) => void handleSelectedUserChange(event.target.value)}
+                  value={selectedUserId}
+                >
+                  <option value="">Select user</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {isLoadingWatchedMovies ? (
+                <p className="message">Loading watched movies...</p>
+              ) : null}
+
+              {!isLoadingWatchedMovies && selectedUserId && watchedMovies.length === 0 ? (
+                <p className="message">No watched movies for this user.</p>
+              ) : null}
+
+              {!isLoadingWatchedMovies && watchedMovies.length > 0 ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Movie</th>
+                        <th>Score</th>
+                        <th>Platform</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {watchedMovies.map((watchedMovie) => (
+                        <tr key={watchedMovie.movie.id}>
+                          <td>{watchedMovie.movie.title}</td>
+                          <td>{watchedMovie.score}</td>
+                          <td>{watchedMovie.platform}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
 
         <section className="panel users-panel">
           <div className="panel-title-row">
