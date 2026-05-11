@@ -1,0 +1,5 @@
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  min-height: 320px;
+}

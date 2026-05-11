@@ -1,0 +1,26 @@
+.movies-layout {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.movies-side {
+  display: grid;
+  gap: 20px;
+}
+
+.movie-form {
+  display: grid;
+  gap: 14px;
+}
+
+.movies-panel {
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .movies-layout {
+    grid-template-columns: 1fr;
+  }
+}
